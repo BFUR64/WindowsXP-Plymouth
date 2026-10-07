@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Windows XP
+Description=Windows XP-style Plymouth theme
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/WindowsXP
+ScriptFile=/usr/share/plymouth/themes/WindowsXP/WindowsXP.script

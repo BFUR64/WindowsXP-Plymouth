@@ -1,0 +1,416 @@
+status = "normal";
+
+
+/*
+ * ============================================================================
+ *  BOOT SETUP
+ * ============================================================================
+ */
+
+if (Plymouth.GetMode() == "boot")
+{
+  /*
+   * --------------------------------------------------------------------------
+   *  Background
+   * --------------------------------------------------------------------------
+   */
+
+  Window.SetBackgroundTopColor(0.0, 0.0, 0.0);
+  Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
+
+
+  /*
+   * Complete Windows XP background.
+   *
+   * Contains:
+   *   - XP logo
+   *   - Copyright text
+   *   - Microsoft logo
+   *   - Black background
+   */
+
+  background.image = Image("Background.png");
+  background.sprite = Sprite(background.image);
+
+  background.x =
+    Window.GetWidth() / 2 -
+    background.image.GetWidth() / 2;
+
+  background.y =
+    Window.GetHeight() / 2 -
+    background.image.GetHeight() / 2;
+
+  background.sprite.SetPosition(
+    background.x,
+    background.y,
+    0
+  );
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  Loading Bar
+   * --------------------------------------------------------------------------
+   *
+   * Fixed Windows XP loading-bar frame.
+   */
+
+  loading_bar.image = Image("Bar.png");
+  loading_bar.sprite = Sprite(loading_bar.image);
+
+  loading_bar.x =
+    Window.GetWidth() / 2 -
+    loading_bar.image.GetWidth() / 2;
+
+  loading_bar.y =
+    Window.GetHeight() / 2 +
+    134;
+
+  loading_bar.sprite.SetPosition(
+    loading_bar.x,
+    loading_bar.y,
+    100
+  );
+
+  loading_bar.sprite.SetOpacity(1);
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  Loading Blocks
+   * --------------------------------------------------------------------------
+   *
+   * Three unique block images are used to reproduce
+   * the original Windows XP loading animation.
+   */
+
+  block[0].image = Image("Block-1.png");
+  block[1].image = Image("Block-2.png");
+  block[2].image = Image("Block-3.png");
+
+  block_width = block[0].image.GetWidth();
+  block_height = block[0].image.GetHeight();
+
+
+  /*
+   * Distance between consecutive blocks.
+   *
+   * 14 px block + 4 px gap = 18 px step.
+   */
+
+  block_gap = 4;
+  block_step = block_width + block_gap;
+
+
+  /*
+   * Keep the animation away from the rounded
+   * ends of the loading bar.
+   */
+
+  bar_padding = 10;
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  Animation Track
+   * --------------------------------------------------------------------------
+   */
+
+  track_left =
+    loading_bar.x +
+    bar_padding;
+
+  track_right =
+    loading_bar.x +
+    loading_bar.image.GetWidth() -
+    bar_padding;
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  Initial Animation Position
+   * --------------------------------------------------------------------------
+   *
+   * The train consists of three blocks:
+   *
+   *   [14] + 4 + [14] + 4 + [14] = 50 px
+   *
+   * The 1 px offset allows the animation to land
+   * precisely at the mathematical center.
+   */
+
+  animation_position =
+    -(block_step * 3) + 1;
+
+
+  /*
+   * Movement timer.
+   *
+   * Plymouth refreshes approximately every 20 ms.
+   * The animation advances every 80 ms.
+   */
+
+  animation_timer = 0;
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  End-of-Loop Pause
+   * --------------------------------------------------------------------------
+   *
+   * Four refresh cycles × 20 ms = 80 ms.
+   *
+   *   0  = moving
+   *   >0 = paused
+   */
+
+  end_pause_frames = 0;
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  Create Block Sprites
+   * --------------------------------------------------------------------------
+   */
+
+  for (index = 0; index < 3; index++)
+  {
+    block[index].sprite =
+      Sprite(block[index].image);
+
+
+    /*
+     * Horizontal position.
+     */
+
+    block[index].x =
+      track_left +
+      animation_position +
+      index * block_step;
+
+
+    /*
+     * Vertically center the 24 px blocks
+     * inside the 36 px loading bar.
+     *
+     * (36 - 24) / 2 = 6 px.
+     */
+
+    block[index].y =
+      loading_bar.y +
+      (loading_bar.image.GetHeight() -
+       block_height) / 2;
+
+
+    block[index].sprite.SetPosition(
+      block[index].x,
+      block[index].y,
+      200
+    );
+
+
+    /*
+     * Start completely outside the track.
+     */
+
+    block[index].sprite.SetOpacity(0);
+  }
+}
+
+
+/*
+ * ============================================================================
+ *  ANIMATION
+ * ============================================================================
+ */
+
+fun refresh ()
+{
+  mode = Plymouth.GetMode();
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  Normal Boot Animation
+   * --------------------------------------------------------------------------
+   */
+
+  if (status == "normal" && mode == "boot")
+  {
+    /*
+     * ========================================================================
+     *  END-OF-LOOP PAUSE
+     * ========================================================================
+     *
+     * Once the entire train has left the right side of the
+     * track, pause for 80 ms before restarting on the left.
+     */
+
+    if (end_pause_frames > 0)
+    {
+      end_pause_frames -= 1;
+
+
+      /*
+       * Pause complete.
+       */
+
+      if (end_pause_frames == 0)
+      {
+        /*
+         * Return the entire train to the left
+         * side of the animation track.
+         */
+
+        animation_position =
+          -(block_step * 3) + 1;
+
+
+        /*
+         * Reset movement timer.
+         */
+
+        animation_timer = 0;
+
+
+        /*
+         * Reposition and hide all blocks.
+         */
+
+        for (index = 0; index < 3; index++)
+        {
+          block[index].x =
+            track_left +
+            animation_position +
+            index * block_step;
+
+          block[index].sprite.SetX(
+            block[index].x
+          );
+
+          block[index].sprite.SetOpacity(0);
+        }
+      }
+    }
+
+
+    /*
+     * ========================================================================
+     *  NORMAL MOVEMENT
+     * ========================================================================
+     *
+     * Plymouth refreshes repeatedly.
+     *
+     * Accumulate approximately 20 ms per refresh
+     * and advance the animation every 80 ms.
+     */
+
+    else
+    {
+      animation_timer += 20;
+
+
+      if (animation_timer >= 80)
+      {
+        animation_timer = 0;
+
+
+        /*
+         * Advance by exactly one block + gap.
+         */
+
+        animation_position += block_step;
+
+
+        /*
+         * Update every block.
+         */
+
+        for (index = 0; index < 3; index++)
+        {
+          block[index].x =
+            track_left +
+            animation_position +
+            index * block_step;
+
+          block[index].sprite.SetX(
+            block[index].x
+          );
+
+
+          /*
+           * Hide blocks that are completely
+           * outside the usable animation track.
+           */
+
+          if (
+            block[index].x + block_width <= track_left ||
+            block[index].x >= track_right
+          )
+          {
+            block[index].sprite.SetOpacity(0);
+          }
+          else
+          {
+            block[index].sprite.SetOpacity(1);
+          }
+        }
+
+
+        /*
+         * ====================================================================
+         *  END DETECTION
+         * ====================================================================
+         *
+         * block[0] is the leftmost block.
+         *
+         * Since the train moves from left to right,
+         * block[0] is the final block to leave.
+         *
+         * Once block[0] reaches track_right,
+         * the entire train has left the track.
+         */
+
+        if (
+          track_left +
+          animation_position >=
+          track_right
+        )
+        {
+          /*
+           * Four refreshes × 20 ms = 80 ms pause.
+           */
+
+          end_pause_frames = 4;
+        }
+      }
+    }
+  }
+
+
+  /*
+   * --------------------------------------------------------------------------
+   *  Hide Animation During Boot Dialog
+   * --------------------------------------------------------------------------
+   *
+   * Password prompts and other boot dialogue should
+   * temporarily hide the loading animation.
+   */
+
+  else if (mode == "boot")
+  {
+    for (index = 0; index < 3; index++)
+    {
+      block[index].sprite.SetOpacity(0);
+    }
+  }
+}
+
+
+/*
+ * ============================================================================
+ *  REGISTER REFRESH FUNCTION
+ * ============================================================================
+ */
+
+Plymouth.SetRefreshFunction(refresh);
